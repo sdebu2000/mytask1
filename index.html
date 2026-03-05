@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>My Task App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{margin:0;font-family:Arial;background:#4b2c2c;color:white;}
+.top-bar{background:black;padding:10px 5px;display:flex;align-items:center;}
+.category{flex:1;text-align:center;cursor:pointer;}
+.category.active{font-weight:bold;text-decoration:underline;}
+.search-icon{width:40px;text-align:center;cursor:pointer;font-size:18px;}
+
+.search-container{display:none;background:#3a1f1f;padding:8px;}
+.search-container input{width:100%;padding:8px;border:none;}
+
+.task{border-bottom:1px solid #3a1f1f;padding:8px 10px;cursor:pointer;}
+.task-header{display:flex;align-items:center;gap:8px;}
+.status{width:14px;height:14px;border-radius:50%;}
+.task-description{margin-top:6px;display:none;font-size:13px;color:#ddd;}
+
+.add-btn,.more-btn{
+ position:fixed;right:20px;border:none;color:white;border-radius:50%;
+ cursor:pointer;width:50px;height:50px;
+}
+.add-btn{bottom:20px;background:red;font-size:24px;}
+.more-btn{bottom:80px;background:#444;font-size:22px;}
+
+.more-menu{
+ position:fixed;right:80px;bottom:80px;
+ background:#3a1f1f;display:none;padding:10px;border-radius:8px;
+}
+.more-menu div{padding:8px 15px;cursor:pointer;}
+.more-menu div:hover{background:#5a2f2f;}
+
+.popup{
+ position:fixed;top:0;left:0;width:100%;height:100%;
+ background:rgba(0,0,0,0.7);
+ display:none;justify-content:center;align-items:center;
+}
+.popup-content{background:#3a1f1f;padding:20px;width:320px;}
+
+input,textarea,select{width:100%;padding:8px;margin-top:10px;border:none;}
+select{
+  background:white;
+  color:black;
+}
+button{margin-top:10px;width:100%;padding:10px;border:none;color:white;cursor:pointer;}
+.save-btn{background:red;}
+.cancel-btn{background:#555;}
+.delete-btn{background:darkred;}
+.warning{color:orange;font-size:13px;margin-top:8px;}
+</style>
+<link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+
+<div class="top-bar">
+ <div id="categoryBar" style="flex:1;display:flex;"></div>
+ <div class="search-icon" onclick="openSearchPopup()">🔍</div>
+ <div class="search-icon" onclick="clearSearch()" id="clearSearchBtn" style="display:none;color:red;">❌</div>
+ </div>
+
+<div class="search-container" id="searchBox">
+ <input type="text" id="searchInput" placeholder="Search text...">
+</div>
+
+<div id="taskList"></div>
+
+<button class="more-btn" onclick="toggleMore()">⋮</button>
+<button class="add-btn" onclick="openPopup()">+</button>
+
+<div class="more-menu" id="moreMenu">
+ <div onclick="addCategory()">Add Subcategory</div>
+ <div onclick="openEditCategory()">Edit Subcategory</div>
+ <div onclick="openDeleteCategory()">Delete Subcategory</div>
+
+ <div onclick="showNext7Days()">Next 7 Days Tasks</div>   <!-- NEW -->
+
+ <div onclick="exportData()">Export Data</div>
+ <div onclick="importOldXML()">Import Old XML</div>
+</div>
+
+<!-- TASK POPUP -->
+<div class="popup" id="popup">
+<div class="popup-content">
+<h3 id="popupTitle">Add Task</h3>
+<input id="taskTitle" placeholder="Task Title">
+<textarea id="taskDescription" placeholder="Task Description"></textarea>
+<select id="taskCategory"></select>
+
+<select id="taskPriority">
+  <option value="Normal">Normal</option>
+  <option value="High">High</option>
+  <option value="Low">Low</option>
+</select>
+
+<input type="date" id="taskDate">
+<input type="time" id="taskTime">
+<select id="taskRepeat" onchange="handleRepeatChange()">
+  <option value="None">No Repeat</option>
+  <option value="Daily">Daily</option>
+  <option value="Weekly">Weekly</option>
+  <option value="Monthly">Monthly</option>
+  <option value="Quarterly">Quarterly</option>
+  <option value="Yearly">Yearly</option>
+  <option value="Custom">Custom Date</option>
+</select>
+
+<input type="date" id="customRepeatDate" style="display:none;">
+<button class="save-btn" onclick="saveTask()">Save Task</button>
+<button class="delete-btn" id="deleteBtn" onclick="deleteTask()" style="display:none;">Delete Task</button>
+<button class="cancel-btn" onclick="closePopup()">Cancel</button>
+</div>
+</div>
+
+<div class="popup" id="categoryPopup">
+<div class="popup-content" id="categoryContent"></div>
+</div>
+
+
+<!-- ADVANCED SEARCH POPUP -->
+<div class="popup" id="searchPopup">
+<div class="popup-content">
+
+<h3>Advanced Search</h3>
+
+<input id="searchText" placeholder="Text search (optional)">
+
+<label>Category</label>
+<select id="searchCategory"></select>
+
+<label>Priority</label>
+<select id="searchPriority">
+<option value="">All</option>
+<option value="High">High</option>
+<option value="Normal">Normal</option>
+<option value="Low">Low</option>
+</select>
+
+<label>Date Filter</label>
+<select id="searchDate">
+<option value="">All</option>
+<option value="overdue">Overdue</option>
+<option value="today">Today</option>
+<option value="yesterday">Yesterday</option>
+<option value="tomorrow">Tomorrow</option>
+<option value="week">Next 7 Days</option>
+</select>
+
+<label>Recurring Tasks</label>
+<select id="searchRepeat">
+<option value="">All</option>
+<option value="repeat">Recurring Only</option>
+</select>
+
+<label>Completed</label>
+<select id="searchCompleted">
+<option value="">All</option>
+<option value="yes">Completed Only</option>
+<option value="no">Incomplete Only</option>
+</select>
+
+<label>
+<input type="checkbox" id="includeUndated" checked>
+Include Undated Tasks
+</label>
+
+<button class="save-btn" onclick="runAdvancedSearch()">Search</button>
+<button class="cancel-btn" onclick="closeSearchPopup()">Cancel</button>
+
+</div>
+</div>
+
+<script>
+
+let categories=JSON.parse(localStorage.getItem("categories"))||["Res","OUT","Ph","PC","OFF","Note"];
+let tasks=JSON.parse(localStorage.getItem("tasks"))||[];
+let currentCategory=categories[0];
+let editIndex=null;
+let searchActive=false;
+let next7Mode=false;     // NEW FLAG
+
+function saveToStorage(){
+ localStorage.setItem("tasks",JSON.stringify(tasks));
+ localStorage.setItem("categories",JSON.stringify(categories));
+}
+
+/* SEARCH */
+
+function toggleSearch(){
+ let box=document.getElementById("searchBox");
+ box.style.display=box.style.display==="block"?"none":"block";
+ if(box.style.display==="block"){
+  document.getElementById("searchInput").focus();
+ }
+}
+
+function clearSearch(){
+ document.getElementById("searchInput").value="";
+ searchActive=false;
+ next7Mode=false;   // reset
+ document.getElementById("clearSearchBtn").style.display="none";
+ renderTasks();
+}
+
+document.getElementById("searchInput").addEventListener("keypress",function(e){
+if(e.key==="Enter"){
+ searchActive=true;
+ document.getElementById("searchBox").style.display="none";
+ document.getElementById("clearSearchBtn").style.display="block";
+ renderTasks();
+}
+});
+
+/* STATUS COLOR */
+
+function getStatusColor(d){
+ if(!d) return "blue";
+ let today=new Date();
+ let yyyy=today.getFullYear();
+ let mm=String(today.getMonth()+1).padStart(2,'0');
+ let dd=String(today.getDate()).padStart(2,'0');
+ let todayStr=`${yyyy}-${mm}-${dd}`;
+ if(d===todayStr) return "green";
+ if(d>todayStr) return "black";
+ return "red";
+}
+
+/* NEW PRIORITY COLOR FUNCTION */
+function getPriorityColor(p){
+ if(p==="High") return "red";
+ if(p==="Low") return "black";
+ return "white";
+}
+
+/* CATEGORY RENDER */
+
+function renderCategories(){
+ let bar=document.getElementById("categoryBar");
+ bar.innerHTML="";
+ categories.forEach(cat=>{
+  let div=document.createElement("div");
+  div.className="category";
+  if(cat===currentCategory) div.classList.add("active");
+  div.innerText=cat;
+  div.onclick=()=>{currentCategory=cat;renderCategories();renderTasks();};
+  bar.appendChild(div);
+ });
+}
+
+/* TASK RENDER */
+
+function renderTasks(){
+ let list=document.getElementById("taskList");
+ list.innerHTML="";
+ let searchText=document.getElementById("searchInput").value.toLowerCase();
+
+ let today = new Date();
+ today.setHours(0,0,0,0);
+
+ tasks.forEach((task,index)=>{
+
+  if(searchActive){
+   if(!(task.title||"").toLowerCase().includes(searchText) &&
+      !(task.description||"").toLowerCase().includes(searchText)){
+      return;
+   }
+ 
+   }else{
+
+   if(next7Mode){
+
+      if(!task.date) return;
+
+      let limit = new Date(today);
+      limit.setDate(today.getDate()+7);
+
+      let d=new Date(task.date);
+
+      if(d < today || d > limit) return;
+
+   }else{
+
+      if(task.category!==currentCategory) return;
+
+   }
+}
+
+  let color=getStatusColor(task.date);
+  let repeatIcon = task.repeat && task.repeat!="None" ? " 🔁" : "";
+  let overdueIcon = (!task.completed && task.date && new Date(task.date)<today) ? " ⚠️" : "";
+
+  let div=document.createElement("div");
+  div.className="task";
+  div.innerHTML=`
+   <div class="task-header">
+    <div class="status" style="background:${color}"></div>
+    
+    <div style="color:${getPriorityColor(task.priority||'Normal')};${
+  (task.completed && (!task.repeat || task.repeat==="None"))
+    ? 'text-decoration:line-through;opacity:0.6;'
+    : ''
+}">
+
+     ${task.title}${repeatIcon}${overdueIcon}
+    </div>
+   </div>
+   <div class="task-description">
+    ${task.description||""}<br>
+    ${task.date||""} ${task.time||""}
+   </div>
+  `;
+
+  div.onclick=()=>{
+    let d=div.querySelector(".task-description");
+    d.style.display=d.style.display==="block"?"none":"block";
+  };
+
+  div.ondblclick=(e)=>{
+    e.stopPropagation();
+    openPopup(index);
+  };
+
+  /* Right click / long press toggle complete */
+div.oncontextmenu=(e)=>{
+  e.preventDefault();
+
+
+  if(task.repeat && task.repeat!=="None" && task.date){
+
+  let current = new Date(task.date);
+
+  if(task.repeat==="Daily"){
+    current.setDate(current.getDate()+1);
+  }
+  else if(task.repeat==="Weekly"){
+    current.setDate(current.getDate()+7);
+  }
+  else if(task.repeat==="Monthly"){
+    let day = current.getDate();
+    current.setMonth(current.getMonth()+1);
+
+    // preserve day-of-month
+    if(current.getDate() !== day){
+      current.setDate(0); // last valid day of previous month
+    }
+  }
+  else if(task.repeat==="Quarterly"){
+    let day = current.getDate();
+    current.setMonth(current.getMonth()+3);
+
+    if(current.getDate() !== day){
+      current.setDate(0);
+    }
+  }
+  else if(task.repeat==="Yearly"){
+    let day = current.getDate();
+    current.setFullYear(current.getFullYear()+1);
+
+    if(current.getDate() !== day){
+      current.setDate(0);
+    }
+  }
+  else if(task.repeat==="Custom" && task.customRepeatDate){
+    task.date = task.customRepeatDate;
+    saveToStorage();
+    renderTasks();
+    return;
+  }
+
+  task.date = formatDate(current);
+  task.completed = false;
+}
+  else{
+    task.completed=!task.completed;
+  }
+
+  saveToStorage();
+  renderTasks();
+};
+
+  list.appendChild(div);
+ });
+}
+
+/* EXPORT */
+
+function exportData(){
+
+ let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+ xml += `<TaskApp>\n`;
+
+ xml += `  <Categories>\n`;
+ categories.forEach(cat=>{
+   xml += `    <Category>${escapeXML(cat)}</Category>\n`;
+ });
+ xml += `  </Categories>\n`;
+
+ xml += `  <Tasks>\n`;
+ tasks.forEach(task=>{
+   xml += `    <Task>\n`;
+   xml += `      <Title>${escapeXML(task.title||"")}</Title>\n`;
+   xml += `      <Description>${escapeXML(task.description||"")}</Description>\n`;
+   xml += `      <Category>${escapeXML(task.category||"")}</Category>\n`;
+   xml += `      <Date>${escapeXML(task.date||"")}</Date>\n`;
+   xml += `      <Time>${escapeXML(task.time||"")}</Time>\n`;
+   xml += `      <Priority>${escapeXML(task.priority||"Normal")}</Priority>\n`;
+   xml += `      <Repeat>${escapeXML(task.repeat||"None")}</Repeat>\n`;
+   xml += `      <CustomRepeatDate>${escapeXML(task.customRepeatDate||"")}</CustomRepeatDate>\n`;
+   xml += `      <Completed>${task.completed?"true":"false"}</Completed>\n`;
+   xml += `    </Task>\n`;
+ });
+ xml += `  </Tasks>\n`;
+ xml += `</TaskApp>`;
+
+ let blob = new Blob([xml], {type: "application/xml"});
+ let a = document.createElement("a");
+ a.href = URL.createObjectURL(blob);
+ a.download = "task_backup.xml";
+ a.click();
+}
+
+function escapeXML(str){
+ return str
+  .replace(/&/g,"&amp;")
+  .replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;")
+  .replace(/"/g,"&quot;")
+  .replace(/'/g,"&apos;");
+}
+
+/* IMPORT OLD TASKLIST XML */
+
+function importOldXML(){
+
+ if(!confirm("WARNING: This will replace ALL existing data. Continue?")) return;
+
+ let input=document.createElement("input");
+ input.type="file";
+ input.accept=".xml";
+
+ input.onchange=function(e){
+  let file=e.target.files[0];
+  let reader=new FileReader();
+
+  reader.onload=function(evt){
+   let parser=new DOMParser();
+   let xmlDoc=parser.parseFromString(evt.target.result,"text/xml");
+
+   let categoryNodes=xmlDoc.getElementsByTagName("Category");
+   let newCategories=[];
+   let newTasks=[];
+
+   for(let i=0;i<categoryNodes.length;i++){
+
+    let catName=categoryNodes[i].getAttribute("Name");
+    if(!catName) continue;
+
+    if(!newCategories.includes(catName)){
+      newCategories.push(catName);
+    }
+
+    let taskNodes=categoryNodes[i].getElementsByTagName("Task");
+
+    for(let j=0;j<taskNodes.length;j++){
+
+      let caption=taskNodes[j].getAttribute("Caption")||"";
+      let desc=taskNodes[j].getAttribute("Description")||"";
+      let completed=taskNodes[j].getAttribute("Completed")==="true";
+      let due=taskNodes[j].getAttribute("DueTime");
+
+      let date="";
+      let time="";
+
+      if(due && due!=="0"){
+        let d=new Date(parseInt(due));
+        date=d.toISOString().split("T")[0];
+        time=d.toTimeString().slice(0,5);
+      }
+
+      desc=desc.replace(/!br!/g,"<br>");
+
+      newTasks.push({
+        title:caption,
+        description:desc,
+        category:catName,
+        date:date,
+        time:time,
+        completed:completed
+      });
+    }
+   }
+
+   categories=newCategories;
+   tasks=newTasks;
+   currentCategory=categories[0]||"";
+   saveToStorage();
+   renderCategories();
+   renderTasks();
+
+   alert("Old XML imported successfully!");
+  };
+
+  reader.readAsText(file);
+ };
+
+ input.click();
+}
+
+/* REST (UNCHANGED LOGIC) */
+
+function openPopup(index=null){
+ document.getElementById("popup").style.display="flex";
+ let sel=document.getElementById("taskCategory");
+ sel.innerHTML="";
+ categories.forEach(c=>{
+  let o=document.createElement("option");
+  o.value=c;o.text=c;
+  sel.appendChild(o);
+ });
+
+ if(index!==null){
+  let t=tasks[index];
+  editIndex=index;
+  document.getElementById("popupTitle").innerText="Edit Task";
+  document.getElementById("taskTitle").value=t.title;
+  document.getElementById("taskDescription").value=t.description||"";
+  document.getElementById("taskCategory").value = t.category;
+  document.getElementById("taskPriority").value=t.priority||"Normal";
+  document.getElementById("taskDate").value=t.date||"";
+  document.getElementById("taskTime").value=t.time||"";
+  document.getElementById("taskRepeat").value = t.repeat || "None";
+  document.getElementById("customRepeatDate").value = t.customRepeatDate || "";
+  handleRepeatChange();
+  document.getElementById("deleteBtn").style.display="block";
+}else{
+  editIndex=null;
+  document.getElementById("popupTitle").innerText="Add Task";
+  document.getElementById("taskTitle").value="";
+  document.getElementById("taskDescription").value="";
+  document.getElementById("taskPriority").value="Normal";   // ADD THIS
+  document.getElementById("taskDate").value="";
+  document.getElementById("taskTime").value="";
+  document.getElementById("taskRepeat").value="None";
+  document.getElementById("customRepeatDate").value="";
+  handleRepeatChange();
+  document.getElementById("deleteBtn").style.display="none";
+}
+}
+
+function saveTask(){
+ let data={
+  title:document.getElementById("taskTitle").value,
+  description:document.getElementById("taskDescription").value,
+  category:document.getElementById("taskCategory").value,
+  priority:document.getElementById("taskPriority").value || "Normal",
+  date:document.getElementById("taskDate").value,
+  time:document.getElementById("taskTime").value,
+  repeat: document.getElementById("taskRepeat").value || "None",
+  customRepeatDate: document.getElementById("customRepeatDate").value || "",
+  completed:(editIndex!==null && tasks[editIndex]?.completed)?tasks[editIndex].completed:false
+ };
+ if(editIndex!==null){ tasks[editIndex]=data; }
+ else{ tasks.push(data); }
+ saveToStorage();
+ closePopup();
+ renderTasks();
+}
+
+function deleteTask(){
+ if(confirm("Delete this task?")){
+  tasks.splice(editIndex,1);
+  saveToStorage();
+  closePopup();
+  renderTasks();
+ }
+}
+
+function closePopup(){
+ document.getElementById("popup").style.display="none";
+ editIndex=null;
+}
+
+function addCategory(){
+ let c=prompt("New Subcategory:");
+ if(!c || categories.includes(c)) return;
+ categories.push(c);
+ saveToStorage();
+ renderCategories();
+}
+
+function openEditCategory(){
+ let html=`<h3>Edit Subcategory</h3>
+ <select id="editCatSelect">${categories.map(c=>`<option>${c}</option>`).join("")}</select>
+ <input id="newCatName" placeholder="New name">
+ <button class="save-btn" onclick="editCategory()">Rename</button>
+ <button class="cancel-btn" onclick="closeCategoryPopup()">Cancel</button>`;
+ document.getElementById("categoryContent").innerHTML=html;
+ document.getElementById("categoryPopup").style.display="flex";
+}
+
+function editCategory(){
+ let oldName=document.getElementById("editCatSelect").value;
+ let newName=document.getElementById("newCatName").value;
+ if(!newName) return;
+ categories=categories.map(c=>c===oldName?newName:c);
+ tasks.forEach(t=>{ if(t.category===oldName) t.category=newName; });
+ saveToStorage();
+ closeCategoryPopup();
+ renderCategories();
+ renderTasks();
+}
+
+function openDeleteCategory(){
+ let html=`<h3>Delete Subcategory</h3>
+ <select id="delCatSelect">${categories.map(c=>`<option>${c}</option>`).join("")}</select>
+ <div id="moveSection"></div>
+ <button class="delete-btn" onclick="prepareDelete()">Delete</button>
+ <button class="cancel-btn" onclick="closeCategoryPopup()">Cancel</button>`;
+ document.getElementById("categoryContent").innerHTML=html;
+ document.getElementById("categoryPopup").style.display="flex";
+}
+
+function prepareDelete(){
+ let cat=document.getElementById("delCatSelect").value;
+ let related=tasks.filter(t=>t.category===cat);
+
+ if(related.length>0){
+  let otherCats=categories.filter(c=>c!==cat);
+  let moveHTML=`<div class="warning">${related.length} tasks found. Move to:</div>
+   <select id="moveTo">${otherCats.map(c=>`<option>${c}</option>`).join("")}</select>
+   <button class="delete-btn" onclick="confirmDeleteCategory()">Confirm Delete</button>`;
+  document.getElementById("moveSection").innerHTML=moveHTML;
+ }else{
+  confirmDeleteCategory();
+ }
+}
+
+function confirmDeleteCategory(){
+ let cat=document.getElementById("delCatSelect").value;
+ let moveTo=document.getElementById("moveTo")?.value;
+
+ if(moveTo){
+  tasks.forEach(t=>{ if(t.category===cat) t.category=moveTo; });
+ }
+
+ categories=categories.filter(c=>c!==cat);
+ saveToStorage();
+ closeCategoryPopup();
+ renderCategories();
+ renderTasks();
+}
+
+function closeCategoryPopup(){
+ document.getElementById("categoryPopup").style.display="none";
+}
+
+function openSearchPopup(){
+
+ document.getElementById("searchPopup").style.display="flex";
+
+ let catSelect=document.getElementById("searchCategory");
+ catSelect.innerHTML="<option value=''>All Categories</option>";
+
+ categories.forEach(c=>{
+  let o=document.createElement("option");
+  o.value=c;
+  o.text=c;
+  catSelect.appendChild(o);
+ });
+
+}
+
+function closeSearchPopup(){
+ document.getElementById("searchPopup").style.display="none";
+}
+
+function runAdvancedSearch(){
+
+ let text=document.getElementById("searchText").value.toLowerCase();
+ let cat=document.getElementById("searchCategory").value;
+ let pr=document.getElementById("searchPriority").value;
+ let dateFilter=document.getElementById("searchDate").value;
+ let repeat=document.getElementById("searchRepeat").value;
+ let completed=document.getElementById("searchCompleted").value;
+ let includeUndated=document.getElementById("includeUndated").checked;
+
+ searchActive=true;
+
+ let today=new Date();
+ let todayStr=formatDate(today);
+
+ let tomorrow=new Date();
+ tomorrow.setDate(today.getDate()+1);
+
+ let yesterday=new Date();
+ yesterday.setDate(today.getDate()-1);
+
+ let week=new Date();
+ week.setDate(today.getDate()+7);
+
+ filteredTasks=tasks.filter(task=>{
+
+  if(text){
+   let combined=(task.title+" "+(task.description||"")).toLowerCase();
+   if(!combined.includes(text)) return false;
+  }
+
+  if(cat && task.category!==cat) return false;
+
+  if(pr && task.priority!==pr) return false;
+
+  if(repeat==="repeat" && (!task.repeat || task.repeat==="None")) return false;
+
+  if(completed==="yes" && !task.completed) return false;
+  if(completed==="no" && task.completed) return false;
+
+  if(!includeUndated && !task.date) return false;
+
+  if(dateFilter){
+
+   if(!task.date) return false;
+
+   let d=new Date(task.date);
+
+   if(dateFilter==="overdue" && d>=today) return false;
+
+   if(dateFilter==="today" && task.date!==todayStr) return false;
+
+   if(dateFilter==="yesterday" && task.date!==formatDate(yesterday)) return false;
+
+   if(dateFilter==="tomorrow" && task.date!==formatDate(tomorrow)) return false;
+
+   if(dateFilter==="week" && (d<today || d>week)) return false;
+
+  }
+
+  return true;
+
+ });
+
+ document.getElementById("clearSearchBtn").style.display="block";
+ renderFilteredTasks();
+
+ closeSearchPopup();
+}
+
+function toggleMore(){
+ let m=document.getElementById("moreMenu");
+ m.style.display=m.style.display==="block"?"none":"block";
+}
+
+function handleRepeatChange(){
+  let repeat=document.getElementById("taskRepeat").value;
+  let custom=document.getElementById("customRepeatDate");
+  custom.style.display = repeat==="Custom" ? "block" : "none";
+}
+
+function formatDate(d){
+  let yyyy=d.getFullYear();
+  let mm=String(d.getMonth()+1).padStart(2,'0');
+  let dd=String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+let filteredTasks=null;
+
+function renderFilteredTasks(){
+
+ let list=document.getElementById("taskList");
+ list.innerHTML="";
+
+ if(!filteredTasks || filteredTasks.length===0){
+  list.innerHTML="<div style='padding:10px'>No matching tasks</div>";
+  return;
+ }
+
+ filteredTasks.sort((a,b)=>{
+
+ if(!a.date) return 1;
+ if(!b.date) return -1;
+
+ return a.date.localeCompare(b.date);
+
+});
+
+ filteredTasks.forEach(task=>{
+  let color=getStatusColor(task.date);
+
+  let overdueIcon = "";
+let repeatIcon = "";
+
+if(task.date){
+  let today = new Date().toISOString().split("T")[0];
+  if(task.date < today && (!task.completed || task.repeat)){
+    overdueIcon = " 🔴";
+  }
+}
+
+if(task.repeat && task.repeat !== "None"){
+  repeatIcon = " 🔁";
+}
+
+  let div=document.createElement("div");
+  div.className="task";
+
+  div.innerHTML=`
+   <div class="task-header">
+    <div class="status" style="background:${color}"></div>
+    <div style="color:${getPriorityColor(task.priority||'Normal')}">
+     ${task.title}${repeatIcon}${overdueIcon}
+    </div>
+   </div>
+  `;
+
+  list.appendChild(div);
+ });
+}
+
+function showNext7Days(){
+
+ next7Mode=true;
+ searchActive=false;
+
+ document.getElementById("clearSearchBtn").style.display="block";
+
+ renderTasks();
+}
+
+renderCategories();
+renderTasks();
+
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js')
+      .then(function() {
+        console.log('ServiceWorker registered successfully');
+      })
+      .catch(function(error) {
+        console.log('ServiceWorker registration failed:', error);
+      });
+  });
+}
+</script>
+
+</body>
+</html>
