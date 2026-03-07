@@ -205,14 +205,18 @@ function clearSearch(){
  renderTasks();
 }
 
-document.getElementById("searchInput").addEventListener("keypress",function(e){
-if(e.key==="Enter"){
- searchActive=true;
- document.getElementById("searchBox").style.display="none";
- document.getElementById("clearSearchBtn").style.display="block";
- renderTasks();
+let searchInputEl=document.getElementById("searchInput");
+
+if(searchInputEl){
+ searchInputEl.addEventListener("keypress",function(e){
+  if(e.key==="Enter"){
+   searchActive=true;
+   document.getElementById("searchBox").style.display="none";
+   document.getElementById("clearSearchBtn").style.display="block";
+   renderTasks();
+  }
+ });
 }
-});
 
 /* STATUS COLOR */
 
@@ -255,12 +259,40 @@ function renderCategories(){
 function renderTasks(){
  let list=document.getElementById("taskList");
  list.innerHTML="";
- let searchText=document.getElementById("searchInput").value.toLowerCase();
+ let searchText="";
 
- let today = new Date();
- today.setHours(0,0,0,0);
+let today = new Date();
+today.setHours(0,0,0,0);
 
- tasks.forEach((task,index)=>{
+let searchBox=document.getElementById("searchInput");
+if(searchBox){
+  searchText=searchBox.value.toLowerCase();
+}
+
+ let sortedTasks = [...tasks];
+
+sortedTasks.sort((a,b)=>{
+
+  if(a.completed && !b.completed) return 1;
+  if(!a.completed && b.completed) return -1;
+
+  if(!a.date && !b.date) return 0;
+  if(!a.date) return 1;
+  if(!b.date) return -1;
+
+  let da=new Date(a.date);
+  let db=new Date(b.date);
+
+  let ta = da < today ? 0 : (da.getTime()===today.getTime()?1:2);
+  let tb = db < today ? 0 : (db.getTime()===today.getTime()?1:2);
+
+  if(ta!==tb) return ta-tb;
+
+  return da-db;
+
+});
+
+ sortedTasks.forEach((task,index)=>{
 
   if(searchActive){
    if(!(task.title||"").toLowerCase().includes(searchText) &&
@@ -290,7 +322,7 @@ function renderTasks(){
 
   let color=getStatusColor(task.date);
   let repeatIcon = task.repeat && task.repeat!="None" ? " 🔁" : "";
-  let overdueIcon = (!task.completed && task.date && new Date(task.date)<today) ? " ⚠️" : "";
+  
 
   let div=document.createElement("div");
   div.className="task";
@@ -304,7 +336,7 @@ function renderTasks(){
     : ''
 }">
 
-     ${task.title}${repeatIcon}${overdueIcon}
+    ${task.title}${repeatIcon}
     </div>
    </div>
    <div class="task-description">
@@ -318,10 +350,11 @@ function renderTasks(){
     d.style.display=d.style.display==="block"?"none":"block";
   };
 
-  div.ondblclick=(e)=>{
-    e.stopPropagation();
-    openPopup(index);
-  };
+ div.ondblclick=(e)=>{
+  e.stopPropagation();
+  let realIndex = tasks.indexOf(task);
+  openPopup(realIndex);
+};
 
   /* Right click / long press toggle complete */
 div.oncontextmenu=(e)=>{
@@ -435,21 +468,31 @@ function escapeXML(str){
 
 function importOldXML(){
 
- if(!confirm("WARNING: This will replace ALL existing data. Continue?")) return;
+ let mode = prompt(
+"Choose Import Mode:\n\n1 = Replace ALL existing data\n2 = Merge with existing data\n\nEnter 1 or 2"
+ );
+
+ if(mode!=="1" && mode!=="2"){
+  alert("Import cancelled");
+  return;
+ }
 
  let input=document.createElement("input");
  input.type="file";
  input.accept=".xml";
 
  input.onchange=function(e){
+
   let file=e.target.files[0];
   let reader=new FileReader();
 
   reader.onload=function(evt){
+
    let parser=new DOMParser();
    let xmlDoc=parser.parseFromString(evt.target.result,"text/xml");
 
    let categoryNodes=xmlDoc.getElementsByTagName("Category");
+
    let newCategories=[];
    let newTasks=[];
 
@@ -493,17 +536,41 @@ function importOldXML(){
     }
    }
 
-   categories=newCategories;
-   tasks=newTasks;
+   /* ----- REPLACE MODE ----- */
+
+   if(mode==="1"){
+
+     categories=newCategories;
+     tasks=newTasks;
+
+   }
+
+   /* ----- MERGE MODE ----- */
+
+   if(mode==="2"){
+
+     newCategories.forEach(cat=>{
+       if(!categories.includes(cat)){
+         categories.push(cat);
+       }
+     });
+
+     tasks = tasks.concat(newTasks);
+
+   }
+
    currentCategory=categories[0]||"";
+
    saveToStorage();
    renderCategories();
    renderTasks();
 
-   alert("Old XML imported successfully!");
+   alert("XML import completed successfully!");
+
   };
 
   reader.readAsText(file);
+
  };
 
  input.click();
@@ -614,28 +681,71 @@ function editCategory(){
 }
 
 function openDeleteCategory(){
- let html=`<h3>Delete Subcategory</h3>
- <select id="delCatSelect">${categories.map(c=>`<option>${c}</option>`).join("")}</select>
+
+ let html = `
+ <h3>Delete Subcategory</h3>
+
+ <select id="delCatSelect" onchange="checkCategoryTasks()">
+ ${categories.map(c=>`<option>${c}</option>`).join("")}
+ </select>
+
  <div id="moveSection"></div>
+
  <button class="delete-btn" onclick="prepareDelete()">Delete</button>
- <button class="cancel-btn" onclick="closeCategoryPopup()">Cancel</button>`;
- document.getElementById("categoryContent").innerHTML=html;
- document.getElementById("categoryPopup").style.display="flex";
+ <button class="cancel-btn" onclick="closeCategoryPopup()">Cancel</button>
+ `;
+
+ document.getElementById("categoryContent").innerHTML = html;
+ document.getElementById("categoryPopup").style.display = "flex";
+
+ checkCategoryTasks();
+}
+
+function checkCategoryTasks(){
+
+ let selected = document.getElementById("delCatSelect").value;
+
+ let hasTasks = tasks.some(t => t.category === selected);
+
+ if(!hasTasks){
+     document.getElementById("moveSection").innerHTML = "";
+     return;
+ }
+
+ let otherCats = categories.filter(c => c !== selected);
+
+ document.getElementById("moveSection").innerHTML = `
+ <p>This category contains tasks.</p>
+ <p>Select where to move them:</p>
+
+ <select id="moveToCat">
+ ${otherCats.map(c=>`<option>${c}</option>`).join("")}
+ </select>
+ `;
 }
 
 function prepareDelete(){
- let cat=document.getElementById("delCatSelect").value;
- let related=tasks.filter(t=>t.category===cat);
 
- if(related.length>0){
-  let otherCats=categories.filter(c=>c!==cat);
-  let moveHTML=`<div class="warning">${related.length} tasks found. Move to:</div>
-   <select id="moveTo">${otherCats.map(c=>`<option>${c}</option>`).join("")}</select>
-   <button class="delete-btn" onclick="confirmDeleteCategory()">Confirm Delete</button>`;
-  document.getElementById("moveSection").innerHTML=moveHTML;
- }else{
-  confirmDeleteCategory();
+ let delCat = document.getElementById("delCatSelect").value;
+
+ let moveSelect = document.getElementById("moveToCat");
+
+ if(moveSelect){
+     let moveTo = moveSelect.value;
+
+     tasks.forEach(t=>{
+         if(t.category === delCat){
+             t.category = moveTo;
+         }
+     });
  }
+
+ categories = categories.filter(c=>c!==delCat);
+
+ saveToStorage();
+ closeCategoryPopup();
+ renderCategories();
+ renderTasks();
 }
 
 function confirmDeleteCategory(){
@@ -655,6 +765,7 @@ function confirmDeleteCategory(){
 
 function closeCategoryPopup(){
  document.getElementById("categoryPopup").style.display="none";
+ document.getElementById("moreMenu").style.display="none";
 }
 
 function openSearchPopup(){
@@ -701,7 +812,7 @@ function runAdvancedSearch(){
  let week=new Date();
  week.setDate(today.getDate()+7);
 
- filteredTasks=tasks.filter(task=>{
+ filteredTasks = tasks.filter(task=>{
 
   if(text){
    let combined=(task.title+" "+(task.description||"")).toLowerCase();
@@ -765,7 +876,7 @@ function formatDate(d){
   return `${yyyy}-${mm}-${dd}`;
 }
 
-let filteredTasks=null;
+let filteredTasks=[];
 
 function renderFilteredTasks(){
 
@@ -778,30 +889,18 @@ function renderFilteredTasks(){
  }
 
  filteredTasks.sort((a,b)=>{
+  if(!a.date) return 1;
+  if(!b.date) return -1;
+  return a.date.localeCompare(b.date);
+ });
 
- if(!a.date) return 1;
- if(!b.date) return -1;
-
- return a.date.localeCompare(b.date);
-
-});
+ let today = new Date();
+ today.setHours(0,0,0,0);
 
  filteredTasks.forEach(task=>{
+
   let color=getStatusColor(task.date);
-
-  let overdueIcon = "";
-let repeatIcon = "";
-
-if(task.date){
-  let today = new Date().toISOString().split("T")[0];
-  if(task.date < today && (!task.completed || task.repeat)){
-    overdueIcon = " 🔴";
-  }
-}
-
-if(task.repeat && task.repeat !== "None"){
-  repeatIcon = " 🔁";
-}
+  let repeatIcon = task.repeat && task.repeat!=="None" ? " 🔁" : "";
 
   let div=document.createElement("div");
   div.className="task";
@@ -809,17 +908,83 @@ if(task.repeat && task.repeat !== "None"){
   div.innerHTML=`
    <div class="task-header">
     <div class="status" style="background:${color}"></div>
-    <div style="color:${getPriorityColor(task.priority||'Normal')}">
-     ${task.title}${repeatIcon}${overdueIcon}
+    <div style="color:${getPriorityColor(task.priority||'Normal')};${
+      (task.completed && (!task.repeat || task.repeat==="None"))
+      ? 'text-decoration:line-through;opacity:0.6;'
+      : ''
+    }">
+     ${task.title}${repeatIcon}
     </div>
    </div>
+   <div class="task-description">
+    ${task.description||""}<br>
+    ${task.date||""} ${task.time||""}
+   </div>
   `;
+
+  /* Single click → expand */
+  div.onclick=()=>{
+    let d=div.querySelector(".task-description");
+    d.style.display=d.style.display==="block"?"none":"block";
+  };
+
+  /* Double click → edit */
+  div.ondblclick=(e)=>{
+    e.stopPropagation();
+    let realIndex = tasks.indexOf(task);
+    openPopup(realIndex);
+  };
+
+  /* Right click / long press → complete / reschedule */
+  div.oncontextmenu=(e)=>{
+    e.preventDefault();
+
+    if(task.repeat && task.repeat!=="None" && task.date){
+
+      let current = new Date(task.date);
+
+      if(task.repeat==="Daily") current.setDate(current.getDate()+1);
+      else if(task.repeat==="Weekly") current.setDate(current.getDate()+7);
+      else if(task.repeat==="Monthly"){
+        let day=current.getDate();
+        current.setMonth(current.getMonth()+1);
+        if(current.getDate()!==day) current.setDate(0);
+      }
+      else if(task.repeat==="Quarterly"){
+        let day=current.getDate();
+        current.setMonth(current.getMonth()+3);
+        if(current.getDate()!==day) current.setDate(0);
+      }
+      else if(task.repeat==="Yearly"){
+        let day=current.getDate();
+        current.setFullYear(current.getFullYear()+1);
+        if(current.getDate()!==day) current.setDate(0);
+      }
+      else if(task.repeat==="Custom" && task.customRepeatDate){
+        task.date = task.customRepeatDate;
+        saveToStorage();
+        renderFilteredTasks();
+        return;
+      }
+
+      task.date = formatDate(current);
+      task.completed = false;
+    }
+    else{
+      task.completed = !task.completed;
+    }
+
+    saveToStorage();
+    renderFilteredTasks();
+  };
 
   list.appendChild(div);
  });
 }
 
 function showNext7Days(){
+
+ document.getElementById("moreMenu").style.display="none";
 
  next7Mode=true;
  searchActive=false;
