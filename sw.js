@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasklistB-cache-v2";
+const CACHE_NAME = "tasklistB-cache-v3";
 
 const FILES_TO_CACHE = [
   "./",
@@ -38,3 +38,4 @@ self.addEventListener("fetch", event => {
   );
 
 });
+
