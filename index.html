@@ -175,16 +175,16 @@ Include Undated Tasks
 
 <script>
 
-let categories=JSON.parse(localStorage.getItem("categories"))||["Res","OUT","Ph","PC","OFF","Note"];
-let tasks=JSON.parse(localStorage.getItem("tasks"))||[];
+let categories = JSON.parse(localStorage.getItem("categories_B")) || [...]
+let tasks = JSON.parse(localStorage.getItem("tasks_B")) || []
 let currentCategory=categories[0];
 let editIndex=null;
 let searchActive=false;
 let next7Mode=false;     // NEW FLAG
 
 function saveToStorage(){
- localStorage.setItem("tasks",JSON.stringify(tasks));
- localStorage.setItem("categories",JSON.stringify(categories));
+localStorage.setItem("tasks_B", JSON.stringify(tasks));
+localStorage.setItem("categories_B", JSON.stringify(categories));
 }
 
 /* SEARCH */

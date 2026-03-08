@@ -1,4 +1,4 @@
-const CACHE_NAME = "mytask-cache-v11";
+const CACHE_NAME = "tasklistB-cache-v1";
 
 const FILES_TO_CACHE = [
   "./",
@@ -36,15 +36,4 @@ self.addEventListener("fetch", event => {
     caches.match(event.request)
       .then(response => response || fetch(event.request))
   );
-
 });
-
-
-
-
-
-
-
-
-
-
