@@ -5,16 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body{margin:0;font-family:Arial;background:#87CEEB;color:white;}
-.top-bar{background:#003366;}padding:10px 5px;display:flex;align-items:center;}
-.category{flex:1;text-align:center;cursor:pointer;}
+body{margin:0;font-family:Arial;background:#2f5d7c;color:white;}
+
+.top-bar{
+  background:#003366;
+  padding:10px 5px;
+  display:flex;
+  align-items:center;
+}
+
+#categoryBar{
+  flex:1;
+  display:flex;
+}
+
+.category{
+  flex:1;
+  text-align:center;
+  cursor:pointer;
+}
+
+.search-icon{
+  width:40px;
+  text-align:center;
+  cursor:pointer;
+  font-size:18px;
+}
+
 .category.active{font-weight:bold;text-decoration:underline;}
 .search-icon{width:40px;text-align:center;cursor:pointer;font-size:18px;}
 
-.search-container{display:none;background:#1e3f66;padding:8px;}
+.search-container{display:none;background:#244a63;padding:8px;}
 .search-container input{width:100%;padding:8px;border:none;}
 
-.task{border-bottom:1px solid #1e3f66;padding:8px 10px;cursor:pointer;}
+.task{border-bottom:1px solid #244a63;padding:8px 10px;cursor:pointer;}
 .task-header{display:flex;align-items:center;gap:8px;}
 .status{width:14px;height:14px;border-radius:50%;}
 .task-description{margin-top:6px;display:none;font-size:13px;color:#ddd;}
@@ -28,7 +52,7 @@ body{margin:0;font-family:Arial;background:#87CEEB;color:white;}
 
 .more-menu{
  position:fixed;right:80px;bottom:80px;
- background:#1e3f66;display:none;padding:10px;border-radius:8px;
+ background:#244a63;display:none;padding:10px;border-radius:8px;
 }
 .more-menu div{padding:8px 15px;cursor:pointer;}
 .more-menu div:hover{background:#5a2f2f;}
@@ -38,7 +62,7 @@ body{margin:0;font-family:Arial;background:#87CEEB;color:white;}
  background:rgba(0,0,0,0.7);
  display:none;justify-content:center;align-items:center;
 }
-.popup-content{background:#1e3f66;padding:20px;width:320px;}
+.popup-content{background:#244a63;padding:20px;width:320px;}
 
 input,textarea,select{width:100%;padding:8px;margin-top:10px;border:none;}
 select{
