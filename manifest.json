@@ -1,6 +1,6 @@
 {
-  "name": "Mytask beta",
-  "short_name": "MytaskB",
+  "name": "New Task",
+  "short_name": "New Task",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#4b2c2c",
@@ -20,3 +20,4 @@
   ]
 
 }
+
