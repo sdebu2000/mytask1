@@ -175,16 +175,20 @@ Include Undated Tasks
 
 <script>
 
-let categories = JSON.parse(localStorage.getItem("categories_B")) || ["General"];
+let storedCategories = JSON.parse(localStorage.getItem("categories_B")) || [];
+let categories = ["ALL", ...storedCategories.filter(c => c !== "ALL")];
 let tasks = JSON.parse(localStorage.getItem("tasks_B")) || []
-let currentCategory=categories[0];
+let currentCategory="ALL";
 let editIndex=null;
 let searchActive=false;
 let next7Mode=false;     // NEW FLAG
 
 function saveToStorage(){
 localStorage.setItem("tasks_B", JSON.stringify(tasks));
-localStorage.setItem("categories_B", JSON.stringify(categories));
+
+// remove ALL before saving
+let catsToSave = categories.filter(c => c !== "ALL");
+localStorage.setItem("categories_B", JSON.stringify(catsToSave));
 }
 
 /* SEARCH */
@@ -315,7 +319,7 @@ sortedTasks.sort((a,b)=>{
 
    }else{
 
-      if(task.category!==currentCategory) return;
+      if(currentCategory !== "ALL" && task.category !== currentCategory) return;
 
    }
 }
@@ -660,7 +664,9 @@ function addCategory(){
 
 function openEditCategory(){
  let html=`<h3>Edit Subcategory</h3>
- <select id="editCatSelect">${categories.map(c=>`<option>${c}</option>`).join("")}</select>
+<select id="editCatSelect">
+${categories.filter(c=>c!=="ALL").map(c=>`<option>${c}</option>`).join("")}
+</select>
  <input id="newCatName" placeholder="New name">
  <button class="save-btn" onclick="editCategory()">Rename</button>
  <button class="cancel-btn" onclick="closeCategoryPopup()">Cancel</button>`;
@@ -686,7 +692,7 @@ function openDeleteCategory(){
  <h3>Delete Subcategory</h3>
 
  <select id="delCatSelect" onchange="checkCategoryTasks()">
- ${categories.map(c=>`<option>${c}</option>`).join("")}
+ ${categories.filter(c=>c!=="ALL").map(c=>`<option>${c}</option>`).join("")}
  </select>
 
  <div id="moveSection"></div>
