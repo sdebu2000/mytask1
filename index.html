@@ -315,9 +315,14 @@ sortedTasks.sort((a,b)=>{
   let ta = da < today ? 0 : (da.getTime()===today.getTime()?1:2);
   let tb = db < today ? 0 : (db.getTime()===today.getTime()?1:2);
 
-  if(ta!==tb) return ta-tb;
+ if(ta!==tb) return ta-tb;
 
-  return da-db;
+if(da.getTime()===db.getTime()){
+   if(a.priority==="High" && b.priority!=="High") return -1;
+   if(a.priority!=="High" && b.priority==="High") return 1;
+}
+
+return da-db;
 
 });
 
@@ -369,7 +374,7 @@ sortedTasks.sort((a,b)=>{
     </div>
    </div>
    <div class="task-description">
-    ${task.description||""}<br>
+    ${(task.description||"").replace(/\n/g,"<br>")}<br>
     ${task.date||""} ${task.time||""}
    </div>
   `;
@@ -576,86 +581,64 @@ function importOldXML(){
    let parser=new DOMParser();
    let xmlDoc=parser.parseFromString(evt.target.result,"text/xml");
 
-   let categoryNodes=xmlDoc.getElementsByTagName("Category");
-
    let newCategories=[];
    let newTasks=[];
 
-   for(let i=0;i<categoryNodes.length;i++){
-
-    let catName=categoryNodes[i].getAttribute("Name");
-    if(!catName) continue;
-
-    if(!newCategories.includes(catName)){
-      newCategories.push(catName);
-    }
-
-    let taskNodes=categoryNodes[i].getElementsByTagName("Task");
-
-    for(let j=0;j<taskNodes.length;j++){
-
-      let caption=taskNodes[j].getAttribute("Caption")||"";
-      let desc=taskNodes[j].getAttribute("Description")||"";
-      let completed=taskNodes[j].getAttribute("Completed")==="true";
-      let due=taskNodes[j].getAttribute("DueTime");
-
-      let date="";
-      let time="";
-
-      if(due && due!=="0"){
-        let d=new Date(parseInt(due));
-        date=d.toISOString().split("T")[0];
-        time=d.toTimeString().slice(0,5);
-      }
-
-      desc=desc.replace(/!br!/g,"<br>");
-
-      newTasks.push({
-        title:caption,
-        description:desc,
-        category:catName,
-        date:date,
-        time:time,
-        completed:completed
-      });
-    }
+   /* READ CATEGORIES */
+   let catNodes = xmlDoc.getElementsByTagName("Category");
+   for(let i=0;i<catNodes.length;i++){
+     let name = catNodes[i].textContent.trim();
+     if(name && !newCategories.includes(name)){
+        newCategories.push(name);
+     }
    }
 
-   /* ----- REPLACE MODE ----- */
+   /* READ TASKS */
+   let taskNodes = xmlDoc.getElementsByTagName("Task");
+   for(let i=0;i<taskNodes.length;i++){
+
+     let getTag = (tag)=>{
+       let el = taskNodes[i].getElementsByTagName(tag)[0];
+       return el ? el.textContent : "";
+     };
+
+     newTasks.push({
+       title:getTag("Title"),
+       description:getTag("Description"),
+       category:getTag("Category"),
+       date:getTag("Date"),
+       time:getTag("Time"),
+       priority:getTag("Priority") || "Normal",
+       repeat:getTag("Repeat") || "None",
+       frequency:1,
+       completed:getTag("Completed")==="true"
+     });
+   }
 
    if(mode==="1"){
-
      categories=["ALL", ...newCategories.filter(c=>c!=="ALL")];
      tasks=newTasks;
-
    }
 
-   /* ----- MERGE MODE ----- */
-
    if(mode==="2"){
-
      newCategories.forEach(cat=>{
        if(!categories.includes(cat)){
          categories.push(cat);
        }
      });
-
      tasks = tasks.concat(newTasks);
-
    }
 
-   currentCategory=categories[0]||"";
+   currentCategory="ALL";
 
    saveToStorage();
    renderCategories();
    renderTasks();
 
    alert("XML import completed successfully!");
-
   };
 
   reader.readAsText(file);
-
  };
 
  input.click();
@@ -1023,7 +1006,7 @@ function renderFilteredTasks(){
     </div>
    </div>
    <div class="task-description">
-    ${task.description||""}<br>
+    ${(task.description||"").replace(/\n/g,"<br>")}<br>
     ${task.date||""} ${task.time||""}
    </div>
   `;
@@ -1043,6 +1026,65 @@ function renderFilteredTasks(){
 
   /* Right click / long press → complete / reschedule */
   
+  div.oncontextmenu = function(e){
+ e.preventDefault();
+
+ let action;
+
+ if(task.completed){
+   action = prompt("Choose action:\n1 = Delete\n2 = Not-Done");
+ } else {
+   action = prompt("Choose action:\n1 = Delete\n2 = Done");
+ }
+
+ if(action==="1"){
+   if(confirm("Delete this task?")){
+     let realIndex = tasks.indexOf(task);
+     tasks.splice(realIndex,1);
+   }
+ }
+ else if(action==="2"){
+
+   if(task.repeat && task.repeat!=="None" && task.date){
+
+     let current = new Date(task.date);
+     let freq = task.frequency || 1;
+
+     if(task.repeat==="Daily") 
+       current.setDate(current.getDate()+freq);
+
+     else if(task.repeat==="Weekly") 
+       current.setDate(current.getDate()+(7*freq));
+
+     else if(task.repeat==="Monthly"){
+       let day=current.getDate();
+       current.setMonth(current.getMonth()+freq);
+       if(current.getDate()!==day) current.setDate(0);
+     }
+
+     else if(task.repeat==="Quarterly"){
+       let day=current.getDate();
+       current.setMonth(current.getMonth()+(3*freq));
+       if(current.getDate()!==day) current.setDate(0);
+     }
+
+     else if(task.repeat==="Yearly"){
+       let day=current.getDate();
+       current.setFullYear(current.getFullYear()+freq);
+       if(current.getDate()!==day) current.setDate(0);
+     }
+
+     task.date = formatDate(current);
+     task.completed = false;
+   }
+   else{
+     task.completed = !task.completed;
+   }
+ }
+
+ saveToStorage();
+ renderFilteredTasks();
+};
 
   list.appendChild(div);
  });
