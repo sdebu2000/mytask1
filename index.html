@@ -64,7 +64,20 @@ body{margin:0;font-family:Arial;background:#2f5d7c;color:white;}
 }
 .popup-content{background:#244a63;padding:20px;width:320px;}
 
-input,textarea,select{width:100%;padding:8px;margin-top:10px;border:none;}
+input,textarea,select{
+ width:100%;
+ padding:8px;
+ margin-top:10px;
+ border:none;
+ box-sizing:border-box;
+}
+
+#taskDescription{
+ min-height:180px;
+ resize:vertical;
+ font-family:Arial;
+}
+
 select{
   background:white;
   color:black;
@@ -708,16 +721,29 @@ let data={
  if(editIndex!==null){ tasks[editIndex]=data; }
  else{ tasks.push(data); }
  saveToStorage();
- closePopup();
- renderTasks();
+closePopup();
+
+if(searchActive){
+   runAdvancedSearch();
+}else{
+   renderTasks();
+}
 }
 
 function deleteTask(){
+
  if(confirm("Delete this task?")){
+
   tasks.splice(editIndex,1);
+
   saveToStorage();
   closePopup();
-  renderTasks();
+
+  if(searchActive){
+     runAdvancedSearch();
+  }else{
+     renderTasks();
+  }
  }
 }
 
