@@ -1,4 +1,4 @@
-const CACHE_NAME = "tasklistB-cache-v9";
+const CACHE_NAME = "tasklistB-cache-v10";
 
 const FILES_TO_CACHE = [
   "./",
